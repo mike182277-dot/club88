@@ -391,10 +391,14 @@ body{-webkit-text-size-adjust:100%}
       body: JSON.stringify(payload)
     }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (d) { return { ok: r.ok, d: d }; }); })
       .then(function (res) {
-        if (!res.ok || String(res.d.success) === 'false') throw new Error('send failed');
+        if (!res.ok || String(res.d.success) === 'false') {
+          if (window.console) console.warn('club88 form:', res.d && res.d.message);
+          throw new Error('send failed');
+        }
         form.hidden = true; done.hidden = false;
       })
-      .catch(function () {
+      .catch(function (e) {
+        if (window.console) console.warn('club88 form error:', e && e.message);
         if (btn) { btn.disabled = false; btn.textContent = label; }
         if (err) err.textContent = 'Не получилось отправить заявку. Попробуйте ещё раз или напишите нам напрямую.';
       });
