@@ -330,17 +330,18 @@ body{-webkit-text-size-adjust:100%}
 <form id="apply-form" style="padding: 32px; border-radius: 24px; background: #121611; border: 1px solid rgba(241,242,237,0.1); display: flex; flex-direction: column; gap: 18px">
 <p style="margin: 0; font-family: 'Unbounded', sans-serif; font-size: 20px; text-transform: uppercase">Заявка в клуб</p>
 <label for="apply-name" style="display: flex; flex-direction: column; gap: 8px; font-size: 14px; color: #c9cfc8">Имя
-<input id="apply-name" name="name" type="text" autocomplete="name" placeholder="Как к вам обращаться" style="min-height: 48px; padding: 0 16px; border-radius: 12px; border: 1px solid rgba(241,242,237,0.18); background: #0a0c09; color: #f1f2ed; font: inherit; font-size: 16px">
+<input id="apply-name" name="name" type="text" required maxlength="80" autocomplete="name" placeholder="Как к вам обращаться" style="min-height: 48px; padding: 0 16px; border-radius: 12px; border: 1px solid rgba(241,242,237,0.18); background: #0a0c09; color: #f1f2ed; font: inherit; font-size: 16px">
 </label>
 <label for="apply-contact" style="display: flex; flex-direction: column; gap: 8px; font-size: 14px; color: #c9cfc8">Телефон или Telegram
-<input id="apply-contact" name="contact" type="text" autocomplete="tel" placeholder="+7 или @username" style="min-height: 48px; padding: 0 16px; border-radius: 12px; border: 1px solid rgba(241,242,237,0.18); background: #0a0c09; color: #f1f2ed; font: inherit; font-size: 16px">
+<input id="apply-contact" name="contact" type="text" required maxlength="80" autocomplete="tel" placeholder="+7 или @username" style="min-height: 48px; padding: 0 16px; border-radius: 12px; border: 1px solid rgba(241,242,237,0.18); background: #0a0c09; color: #f1f2ed; font: inherit; font-size: 16px">
 </label>
 <label for="apply-consent" style="display: flex; gap: 12px; align-items: flex-start; font-size: 14px; line-height: 1.5; color: #9aa39c">
-<input id="apply-consent" name="consent" type="checkbox" style="width: 20px; height: 20px; margin: 1px 0 0; accent-color: #2ea26a; flex: none">
+<input id="apply-consent" name="consent" type="checkbox" required style="width: 20px; height: 20px; margin: 1px 0 0; accent-color: #2ea26a; flex: none">
 Согласен на обработку персональных данных
 </label>
 <button type="submit" style="min-height: 52px; border: 0; border-radius: 999px; background: #2ea26a; color: #0a0c09; font: inherit; font-size: 16px; font-weight: 600; cursor: pointer">Оставить заявку</button>
 <p style="margin: 0; font-size: 13px; line-height: 1.5; color: #9aa39c">Персональный менеджер клуба свяжется с вами лично.</p>
+<p id="apply-error" role="alert" style="margin: 0; font-size: 14px; line-height: 1.5; color: #e8a0a0"></p>
 </form>
 <div id="apply-done" role="status" hidden style="padding: 40px 32px; border-radius: 24px; background: rgba(46,162,106,0.12); border: 1px solid rgba(46,162,106,0.45)">
 <p style="margin: 0; font-family: 'Unbounded', sans-serif; font-size: 22px; text-transform: uppercase; color: #2ea26a">Заявка принята</p>
@@ -358,13 +359,45 @@ body{-webkit-text-size-adjust:100%}
 </div>
 <script>
 (function () {
+  var ENDPOINT = 'https://formsubmit.co/ajax/mk@kachalkin.pro';
   var form = document.getElementById('apply-form');
   var done = document.getElementById('apply-done');
+  var err = document.getElementById('apply-error');
   if (!form || !done) return;
+  var btn = form.querySelector('button[type="submit"]');
+  var hp = document.createElement('input');
+  hp.type = 'text'; hp.name = '_honey'; hp.tabIndex = -1; hp.autocomplete = 'off';
+  hp.setAttribute('aria-hidden', 'true');
+  hp.style.cssText = 'position:absolute;left:-9999px;width:1px;height:1px;opacity:0';
+  form.appendChild(hp);
   form.addEventListener('submit', function (e) {
     e.preventDefault();
-    form.hidden = true;
-    done.hidden = false;
+    if (hp.value) return;
+    if (err) err.textContent = '';
+    var label = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = 'Отправляем…'; }
+    var payload = {
+      'Имя': form.elements['name'].value.trim(),
+      'Телефон или Telegram': form.elements['contact'].value.trim(),
+      'Согласие на обработку ПД': 'да',
+      'Страница': location.href,
+      _subject: 'Заявка в Private Club88',
+      _template: 'table',
+      _captcha: 'false'
+    };
+    fetch(ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify(payload)
+    }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (d) { return { ok: r.ok, d: d }; }); })
+      .then(function (res) {
+        if (!res.ok || String(res.d.success) === 'false') throw new Error('send failed');
+        form.hidden = true; done.hidden = false;
+      })
+      .catch(function () {
+        if (btn) { btn.disabled = false; btn.textContent = label; }
+        if (err) err.textContent = 'Не получилось отправить заявку. Попробуйте ещё раз или напишите нам напрямую.';
+      });
   });
 })();
 </script>
