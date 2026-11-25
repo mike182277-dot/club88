@@ -359,6 +359,7 @@ body{-webkit-text-size-adjust:100%}
 </div>
 <script>
 (function () {
+  var TG_ENDPOINT = 'https://club88-apply.mike182277.workers.dev';
   var ENDPOINT = 'https://formsubmit.co/ajax/mk@kachalkin.pro';
   var form = document.getElementById('apply-form');
   var done = document.getElementById('apply-done');
@@ -376,25 +377,51 @@ body{-webkit-text-size-adjust:100%}
     if (err) err.textContent = '';
     var label = btn ? btn.textContent : '';
     if (btn) { btn.disabled = true; btn.textContent = 'Отправляем…'; }
+    var name = form.elements['name'].value.trim();
+    var contact = form.elements['contact'].value.trim();
     var payload = {
-      'Имя': form.elements['name'].value.trim(),
-      'Телефон или Telegram': form.elements['contact'].value.trim(),
+      'Имя': name,
+      'Телефон или Telegram': contact,
       'Согласие на обработку ПД': 'да',
       'Страница': location.href,
       _subject: 'Заявка в Private Club88',
       _template: 'table',
       _captcha: 'false'
     };
-    fetch(ENDPOINT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify(payload)
-    }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (d) { return { ok: r.ok, d: d }; }); })
-      .then(function (res) {
-        if (!res.ok || String(res.d.success) === 'false') {
-          if (window.console) console.warn('club88 form:', res.d && res.d.message);
-          throw new Error('send failed');
-        }
+    function viaEmail() {
+      return fetch(ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(payload)
+      }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (d) { return { ok: r.ok, d: d }; }); })
+        .then(function (res) {
+          if (!res.ok || String(res.d.success) === 'false') {
+            if (window.console) console.warn('club88 form:', res.d && res.d.message);
+            throw new Error('send failed');
+          }
+        });
+    }
+    function viaTelegram() {
+      var ctrl = window.AbortController ? new AbortController() : null;
+      var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, 8000) : null;
+      return fetch(TG_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ name: name, contact: contact, consent: true, _honey: hp.value }),
+        signal: ctrl ? ctrl.signal : undefined
+      }).then(function (r) {
+        if (timer) clearTimeout(timer);
+        return r.json().catch(function () { return {}; }).then(function (d) {
+          if (!r.ok || !d.ok) throw new Error('tg failed');
+        });
+      });
+    }
+    viaTelegram()
+      .catch(function (e) {
+        if (window.console) console.warn('club88 telegram, fallback to email:', e && e.message);
+        return viaEmail();
+      })
+      .then(function () {
         form.hidden = true; done.hidden = false;
       })
       .catch(function (e) {
